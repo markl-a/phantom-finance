@@ -1,0 +1,22 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "phantom-finance"
+version = "0.1.0a0"
+description = "Personal finance tracker for phantom-mesh: ledger, budgets, shame-free reports."
+readme = "README.md"
+license = { text = "Apache-2.0" }
+requires-python = ">=3.10"
+authors = [{ name = "Mark Lai" }]
+
+[project.scripts]
+phantom-finance = "phantom_finance.cli:main"
+
+[tool.setuptools.packages.find]
+include = ["phantom_finance*"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "-ra"
