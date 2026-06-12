@@ -51,13 +51,32 @@ def import_csv(path: Path, account: str = "default") -> list[Transaction]:
     return ledger.append(txns)
 
 
-def _normalize_date(raw: str) -> str:
-    """Accept YYYY-MM-DD / YYYY/MM/DD / YYYYMMDD -> ISO."""
+ROC_EPOCH_OFFSET = 1911  # 民國 year + 1911 = 西元 year (ROC 1 == 1912 CE)
+
+
+def _normalize_date(raw: str, roc: bool = False) -> str:
+    """Accept YYYY-MM-DD / YYYY/MM/DD / YYYYMMDD and 民國 (ROC) years -> ISO.
+
+    ROC (Republic of China / 民國) calendar: ROC year + 1911 = Gregorian year,
+    so 115/06/01 -> 2026-06-01. TW bank statements quote the year as a 1-3 digit
+    ROC year (e.g. ``115`` or ``115/06/01``); a 4-digit leading field is always
+    treated as a western year so existing exports keep parsing unchanged.
+
+    ``roc=True`` is a hint from a bank preset; even without it a leading 1-3
+    digit year field is auto-detected as ROC. A 4-digit year is never converted.
+    """
     raw = raw.replace("/", "-")
     if "-" not in raw and len(raw) == 8 and raw.isdigit():
+        # compact YYYYMMDD — western (TW compact exports use 西元 here)
         return f"{raw[:4]}-{raw[4:6]}-{raw[6:]}"
     parts = raw.split("-")
     if len(parts) == 3:
         y, m, d = parts
+        if y.isdigit() and (roc or len(y.strip()) <= 3):
+            # 1-3 digit leading year => ROC year; convert to 西元.
+            # (roc=True forces ROC interpretation but a 4-digit year is still
+            #  western — there is no valid 4-digit ROC year in real statements.)
+            if len(y.strip()) <= 3:
+                y = str(int(y) + ROC_EPOCH_OFFSET)
         return f"{y}-{m.zfill(2)}-{d.zfill(2)}"
     raise ValueError(f"cannot parse date: {raw!r}")
