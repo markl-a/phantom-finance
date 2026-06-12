@@ -22,12 +22,12 @@
 
 - ✅ **Tier 1 shipped**:
   - JSONL ledger(Decimal end-to-end,float 進不來;txn_id dedupe,重複匯入 idempotent)
-  - CSV ingest:中英文表頭自動偵測、BOM、`2026/6/1` / `20260601` 日期、`NT$1,234` 金額
+  - CSV ingest:中英文表頭自動偵測、BOM、`2026/6/1` / `20260601` / 民國 `115/06/01` 日期、`NT$1,234` 金額
   - 規則分類器(中英關鍵字 80+ 條)+ **LLM fallback hook**(簽名已固定,Tier 2 接 phantom-mesh model router)
   - 月預算 set / show + over-plan 偵測
   - shame-free 月報 → `~/.phantom-mesh/logs/phantom-finance/` + event → `~/.phantom-mesh/events/`
-- 🟡 **Tier 2 next**:LLM hook 接 phantom-mesh router、台灣主要銀行 CSV preset、
-  recurring charge 偵測(訂閱漲價警報)、companion 端 spend×behavior correlation。
+  - 台灣銀行 CSV preset(Cathay / CTBC / E.SUN / Taishin 欄位對應)+ `--bank` flag(無此 flag 維持自動偵測)— **對合成 fixture 驗證;真實對帳單驗證待樣本**
+- 🟡 **Tier 2 next**:LLM hook 接 phantom-mesh router、recurring charge 偵測(訂閱漲價警報)、companion 端 spend×behavior correlation。
 - 🟡 **Tier 3**:多幣別 + 匯率、資產帳戶(非現金流)、`phantom skill` 整合
   (「這個月外食多少?」走 top-down skill)。
 - ⚠️ **Honest caveat**:Tier 1 是規則式 — 沒見過的中文商家會留在

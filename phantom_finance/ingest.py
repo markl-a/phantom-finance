@@ -1,12 +1,20 @@
-"""CSV import with header auto-detection (zh + en bank exports)."""
+"""CSV import with header auto-detection (zh + en bank exports).
+
+With no ``bank`` argument the original auto-detect path runs unchanged. Passing
+``bank=`` selects a named TW-bank preset (see :mod:`phantom_finance.presets`)
+that maps that bank's documented header labels and declares its sign / date /
+skip-row conventions. Presets are synthetic-fixture validated only — real-data
+validation is still pending (owner-blocked); see the README Tier-2 note.
+"""
 
 from __future__ import annotations
 
 import csv
 from pathlib import Path
 
-from . import categorize, ledger
+from . import categorize, ledger, presets
 from .ledger import Transaction, parse_amount
+from .presets import Preset
 
 DATE_HEADERS = ["date", "日期", "交易日期", "transaction date"]
 AMOUNT_HEADERS = ["amount", "金額", "交易金額"]
@@ -16,13 +24,28 @@ DESC_HEADERS = ["description", "desc", "memo", "摘要", "商家", "說明", "me
 def _find(headers: list[str], candidates: list[str]) -> str | None:
     lowered = {h.lower().strip(): h for h in headers}
     for c in candidates:
-        if c in lowered:
-            return lowered[c]
+        if c.lower().strip() in lowered:
+            return lowered[c.lower().strip()]
     return None
 
 
-def import_csv(path: Path, account: str = "default") -> list[Transaction]:
-    """Parse a bank CSV, categorize, append to the ledger. Returns new txns only."""
+def import_csv(
+    path: Path, account: str = "default", bank: str | None = None
+) -> list[Transaction]:
+    """Parse a bank CSV, categorize, append to the ledger. Returns new txns only.
+
+    ``bank`` selects a named TW-bank preset; with ``bank=None`` the existing
+    header auto-detection is used (unchanged). Raises KeyError on unknown bank.
+    """
+    if bank is None:
+        txns = _parse_autodetect(path, account)
+    else:
+        txns = _parse_with_preset(path, account, presets.get(bank))
+    categorize.apply(txns)
+    return ledger.append(txns)
+
+
+def _parse_autodetect(path: Path, account: str) -> list[Transaction]:
     with path.open(encoding="utf-8-sig") as f:  # utf-8-sig: TW banks love BOM
         reader = csv.DictReader(f)
         headers = reader.fieldnames or []
@@ -47,8 +70,71 @@ def import_csv(path: Path, account: str = "default") -> list[Transaction]:
                     account=account,
                 )
             )
-    categorize.apply(txns)
-    return ledger.append(txns)
+    return txns
+
+
+def _parse_with_preset(path: Path, account: str, preset: Preset) -> list[Transaction]:
+    with path.open(encoding="utf-8-sig") as f:  # utf-8-sig: TW banks love BOM
+        for _ in range(preset.skip_rows):  # drop leading banner / metadata rows
+            f.readline()
+        reader = csv.DictReader(f)
+        headers = reader.fieldnames or []
+        date_col = _find(headers, preset.date_headers)
+        desc_col = _find(headers, preset.desc_headers)
+        if not (date_col and desc_col):
+            raise ValueError(
+                f"{preset.name} preset cannot map date/description in {path.name}: "
+                f"headers={headers}"
+            )
+        if preset.is_two_column:
+            credit_col = _find(headers, preset.credit_headers)
+            debit_col = _find(headers, preset.debit_headers)
+            if not (credit_col or debit_col):
+                raise ValueError(
+                    f"{preset.name} preset (two-column) cannot map credit/debit "
+                    f"in {path.name}: headers={headers}"
+                )
+        else:
+            amount_col = _find(headers, preset.amount_headers)
+            if not amount_col:
+                raise ValueError(
+                    f"{preset.name} preset cannot map amount in {path.name}: "
+                    f"headers={headers}"
+                )
+
+        txns = []
+        for row in reader:
+            if preset.is_two_column:
+                amount = _signed_from_two_columns(row, credit_col, debit_col)
+            else:
+                raw_amount = (row[amount_col] or "").strip()
+                amount = parse_amount(raw_amount) if raw_amount else None
+            if amount is None:
+                continue  # empty / pure-metadata row
+            txns.append(
+                Transaction(
+                    date=_normalize_date(row[date_col].strip(), roc=preset.is_roc),
+                    amount=amount,
+                    description=(row[desc_col] or "").strip(),
+                    account=account,
+                )
+            )
+    return txns
+
+
+def _signed_from_two_columns(row, credit_col, debit_col):
+    """Resolve a separate-column statement row into one signed Decimal.
+
+    Debit (支出 / 提出) -> negative; credit (存入 / 轉入) -> positive. Exactly
+    one of the two columns is populated on a real row; an all-empty row -> None.
+    """
+    credit_raw = (row.get(credit_col) or "").strip() if credit_col else ""
+    debit_raw = (row.get(debit_col) or "").strip() if debit_col else ""
+    if debit_raw:
+        return -abs(parse_amount(debit_raw))
+    if credit_raw:
+        return abs(parse_amount(credit_raw))
+    return None
 
 
 ROC_EPOCH_OFFSET = 1911  # 民國 year + 1911 = 西元 year (ROC 1 == 1912 CE)

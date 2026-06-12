@@ -16,7 +16,7 @@ from datetime import date
 from decimal import Decimal
 from pathlib import Path
 
-from . import budget, categorize, ingest, ledger, reporter
+from . import budget, categorize, ingest, ledger, presets, reporter
 from .ledger import Transaction, parse_amount
 
 
@@ -34,6 +34,12 @@ def main(argv: list[str] | None = None) -> int:
     p_imp = sub.add_parser("import", help="import a bank CSV")
     p_imp.add_argument("csv_path", type=Path)
     p_imp.add_argument("--account", default="default")
+    p_imp.add_argument(
+        "--bank",
+        default=None,
+        choices=presets.names(),
+        help="use a named TW-bank preset (default: auto-detect headers)",
+    )
 
     p_rep = sub.add_parser("report", help="write the monthly report")
     p_rep.add_argument("--month", default=date.today().isoformat()[:7])
