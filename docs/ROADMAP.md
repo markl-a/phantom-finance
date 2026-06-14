@@ -4,7 +4,7 @@
 
 - JSONL ledger: Decimal end-to-end, sha256 txn_id dedupe, idempotent re-import
 - CSV ingest: zh/en header auto-detect, BOM, date normalization, `NT$1,234` parsing
-- Rule categorizer (80+ zh/en keywords) + stable LLM fallback hook signature
+- Rule categorizer (~70 zh/en keywords) + LLM fallback hook signature (defined but not yet wired into any code path)
 - Monthly budgets (set/show, over-plan detection, transfers excluded)
 - Shame-free monthly report → `~/.phantom-mesh/logs/phantom-finance/`
 - Event emission → `~/.phantom-mesh/events/` (consumed by phantom-companion)
