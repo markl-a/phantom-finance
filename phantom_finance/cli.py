@@ -16,7 +16,7 @@ from datetime import date
 from decimal import Decimal
 from pathlib import Path
 
-from . import budget, categorize, ingest, ledger, presets, reporter
+from . import budget, categorize, ingest, ledger, presets, recurring, reporter
 from .ledger import Transaction, parse_amount
 
 
@@ -53,6 +53,8 @@ def main(argv: list[str] | None = None) -> int:
     p_show.add_argument("--month", default=date.today().isoformat()[:7])
 
     sub.add_parser("recat", help="re-run the categorizer on uncategorized txns")
+
+    sub.add_parser("recurring", help="list detected recurring charges / subscriptions")
 
     args = parser.parse_args(argv)
 
@@ -94,6 +96,19 @@ def main(argv: list[str] | None = None) -> int:
         changed = categorize.apply(txns)
         ledger.rewrite(txns)
         print(f"re-categorized {changed} transactions")
+
+    elif args.cmd == "recurring":
+        charges = recurring.detect(ledger.load())
+        if not charges:
+            print("no recurring charges detected yet")
+        for c in charges:
+            line = (
+                f"{c.merchant:24s} {c.cadence:9s} x{c.occurrences:<3d} "
+                f"~{c.typical_amount} latest {c.latest_amount}"
+            )
+            if c.price_increased:
+                line += f"  PRICE UP +{c.pct_change:.0f}%"
+            print(line)
 
     return 0
 
