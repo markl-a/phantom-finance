@@ -8,8 +8,11 @@ without touching this module.
 
 from __future__ import annotations
 
+import json
+from pathlib import Path
 from typing import Callable, Optional
 
+from . import paths
 from .ledger import Transaction, UNCATEGORIZED
 
 # keyword (lowercase substring) -> category; zh + en because real ledgers mix both
@@ -55,12 +58,38 @@ DEFAULT_RULES: dict[str, str] = {
 LlmCategorizer = Callable[[str], Optional[str]]
 
 
+def load_user_rules(path: Path | None = None) -> dict[str, str]:
+    p = path or paths.rules_path()
+    if not p.exists():
+        return {}
+    raw = p.read_text(encoding="utf-8")
+    if not raw.strip():
+        return {}
+    try:
+        data = json.loads(raw)
+    except json.JSONDecodeError as e:
+        raise ValueError(f"invalid rules file {p}: {e}") from e
+    if not isinstance(data, dict):
+        raise ValueError(f"rules file {p} must be a JSON object of keyword -> category")
+    return {str(k).lower(): str(v) for k, v in data.items()}
+
+
+def effective_rules(extra: dict[str, str] | None = None) -> dict[str, str]:
+    merged = dict(load_user_rules())
+    for k, v in (extra or {}).items():
+        merged.setdefault(k, v)
+    for k, v in DEFAULT_RULES.items():
+        merged.setdefault(k, v)
+    return merged
+
+
 def categorize_one(
     txn: Transaction,
     rules: dict[str, str] | None = None,
+    extra: dict[str, str] | None = None,
     llm: LlmCategorizer | None = None,
 ) -> str:
-    rules = DEFAULT_RULES if rules is None else rules
+    rules = effective_rules(extra) if rules is None else rules
     desc = txn.description.lower()
     for keyword, category in rules.items():
         if keyword in desc:
@@ -76,10 +105,12 @@ def categorize_one(
 def apply(
     txns: list[Transaction],
     rules: dict[str, str] | None = None,
+    extra: dict[str, str] | None = None,
     llm: LlmCategorizer | None = None,
     only_uncategorized: bool = True,
 ) -> int:
     """Categorize in place. Returns how many transactions changed."""
+    rules = effective_rules(extra) if rules is None else rules
     changed = 0
     for t in txns:
         if only_uncategorized and t.category != UNCATEGORIZED:

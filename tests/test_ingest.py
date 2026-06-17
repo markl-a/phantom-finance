@@ -45,3 +45,20 @@ def test_normalize_date_formats():
     assert ingest._normalize_date("2026-06-01") == "2026-06-01"
     with pytest.raises(ValueError):
         ingest._normalize_date("June 1st")
+
+
+def test_normalize_roc_minguo_dates():
+    # 民國 (ROC) year = 西元 (Gregorian) year - 1911; 115 -> 2026
+    assert ingest._normalize_date("115/06/01") == "2026-06-01"
+    assert ingest._normalize_date("115/6/1") == "2026-06-01"
+    assert ingest._normalize_date("100/1/1") == "2011-01-01"  # ROC 100 -> 2011
+    # western 4-digit years must KEEP working and never be treated as ROC
+    assert ingest._normalize_date("2026/06/01") == "2026-06-01"
+    assert ingest._normalize_date("2026-06-01") == "2026-06-01"
+
+
+def test_normalize_roc_dates_via_explicit_flag():
+    # When a preset declares ROC dates, a 2-3 digit leading field is the ROC year.
+    assert ingest._normalize_date("115/06/01", roc=True) == "2026-06-01"
+    # A western date passed with roc=True is still parsed correctly (4-digit year).
+    assert ingest._normalize_date("2026/06/01", roc=True) == "2026-06-01"

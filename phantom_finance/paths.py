@@ -31,6 +31,21 @@ def budgets_path() -> Path:
     return finance_home() / "budgets.json"
 
 
+def rules_path() -> Path:
+    """Optional user-defined categorizer rules (keyword -> category)."""
+    return finance_home() / "rules.json"
+
+
+def rates_path() -> Path:
+    """Exchange rates for currency conversion."""
+    return finance_home() / "rates.json"
+
+
+def accounts_path() -> Path:
+    """Account types for net worth and cashflow."""
+    return finance_home() / "accounts.json"
+
+
 def reports_dir() -> Path:
     p = mesh_home() / "logs" / "phantom-finance"
     p.mkdir(parents=True, exist_ok=True)

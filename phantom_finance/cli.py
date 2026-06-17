@@ -16,7 +16,7 @@ from datetime import date
 from decimal import Decimal
 from pathlib import Path
 
-from . import budget, categorize, ingest, ledger, reporter
+from . import budget, categorize, ingest, ledger, llm, presets, recurring, reporter
 from .ledger import Transaction, parse_amount
 
 
@@ -34,6 +34,12 @@ def main(argv: list[str] | None = None) -> int:
     p_imp = sub.add_parser("import", help="import a bank CSV")
     p_imp.add_argument("csv_path", type=Path)
     p_imp.add_argument("--account", default="default")
+    p_imp.add_argument(
+        "--bank",
+        default=None,
+        choices=presets.names(),
+        help="use a named TW-bank preset (default: auto-detect headers)",
+    )
 
     p_rep = sub.add_parser("report", help="write the monthly report")
     p_rep.add_argument("--month", default=date.today().isoformat()[:7])
@@ -47,6 +53,8 @@ def main(argv: list[str] | None = None) -> int:
     p_show.add_argument("--month", default=date.today().isoformat()[:7])
 
     sub.add_parser("recat", help="re-run the categorizer on uncategorized txns")
+
+    sub.add_parser("recurring", help="list detected recurring charges / subscriptions")
 
     args = parser.parse_args(argv)
 
@@ -62,7 +70,7 @@ def main(argv: list[str] | None = None) -> int:
         print(f"added {len(written)} txn ({txn.category})" if written else "duplicate, skipped")
 
     elif args.cmd == "import":
-        written = ingest.import_csv(args.csv_path, account=args.account)
+        written = ingest.import_csv(args.csv_path, account=args.account, bank=args.bank)
         print(f"imported {len(written)} new transactions from {args.csv_path.name}")
 
     elif args.cmd == "report":
@@ -85,9 +93,22 @@ def main(argv: list[str] | None = None) -> int:
 
     elif args.cmd == "recat":
         txns = ledger.load()
-        changed = categorize.apply(txns)
+        changed = categorize.apply(txns, llm=llm.make_categorizer())
         ledger.rewrite(txns)
         print(f"re-categorized {changed} transactions")
+
+    elif args.cmd == "recurring":
+        charges = recurring.detect(ledger.load())
+        if not charges:
+            print("no recurring charges detected yet")
+        for c in charges:
+            line = (
+                f"{c.merchant:24s} {c.cadence:9s} x{c.occurrences:<3d} "
+                f"~{c.typical_amount} latest {c.latest_amount}"
+            )
+            if c.price_increased:
+                line += f"  PRICE UP +{c.pct_change:.0f}%"
+            print(line)
 
     return 0
 
