@@ -68,7 +68,7 @@ def main(argv: list[str] | None = None) -> int:
         print(f"added {len(written)} txn ({txn.category})" if written else "duplicate, skipped")
 
     elif args.cmd == "import":
-        written = ingest.import_csv(args.csv_path, account=args.account)
+        written = ingest.import_csv(args.csv_path, account=args.account, bank=args.bank)
         print(f"imported {len(written)} new transactions from {args.csv_path.name}")
 
     elif args.cmd == "report":
