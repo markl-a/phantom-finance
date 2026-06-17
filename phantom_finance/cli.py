@@ -16,7 +16,7 @@ from datetime import date
 from decimal import Decimal
 from pathlib import Path
 
-from . import budget, categorize, ingest, ledger, presets, recurring, reporter
+from . import budget, categorize, ingest, ledger, llm, presets, recurring, reporter
 from .ledger import Transaction, parse_amount
 
 
@@ -93,7 +93,7 @@ def main(argv: list[str] | None = None) -> int:
 
     elif args.cmd == "recat":
         txns = ledger.load()
-        changed = categorize.apply(txns)
+        changed = categorize.apply(txns, llm=llm.make_categorizer())
         ledger.rewrite(txns)
         print(f"re-categorized {changed} transactions")
 
