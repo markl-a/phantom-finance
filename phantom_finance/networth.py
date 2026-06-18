@@ -9,6 +9,7 @@ from . import paths
 from .ledger import Transaction
 
 BASE = "TWD"
+ACCOUNT_TYPES = {"cash", "asset"}
 
 
 def load_rates(path: Path | None = None) -> dict[str, Decimal]:
@@ -51,7 +52,7 @@ def convert(
     return amount * rates[from_ccy] / rates[to_ccy]
 
 
-def load_account_types(path: Path | None = None) -> dict[str, str]:
+def _read_accounts(path: Path | None = None) -> dict[str, object]:
     p = path or paths.accounts_path()
     if not p.exists():
         return {}
@@ -68,13 +69,67 @@ def load_account_types(path: Path | None = None) -> dict[str, str]:
     if not isinstance(data, dict):
         raise ValueError(f"accounts file {p} must be a JSON object")
 
-    account_types = {str(account): str(account_type).lower() for account, account_type in data.items()}
-    for account, account_type in account_types.items():
-        if account_type not in {"cash", "asset"}:
-            raise ValueError(
-                f"account type must be cash or asset for {account!r}: {account_type!r}"
-            )
-    return account_types
+    return data
+
+
+def _validate_account_type(account: str, account_type: str) -> None:
+    if account_type not in ACCOUNT_TYPES:
+        raise ValueError(
+            f"account type must be cash or asset for {account!r}: {account_type!r}"
+        )
+
+
+def load_account_types(path: Path | None = None) -> dict[str, str]:
+    accounts = load_accounts(path)
+    return {account: data["type"] for account, data in accounts.items()}
+
+
+def load_accounts(path: Path | None = None) -> dict[str, dict[str, str]]:
+    data = _read_accounts(path)
+
+    accounts = {}
+    for raw_account, raw_account_data in data.items():
+        account = str(raw_account)
+        if isinstance(raw_account_data, dict):
+            account_type = str(raw_account_data.get("type")).lower()
+            currency = str(raw_account_data.get("currency", BASE))
+        else:
+            account_type = str(raw_account_data).lower()
+            currency = BASE
+
+        _validate_account_type(account, account_type)
+        accounts[account] = {"type": account_type, "currency": currency}
+
+    return accounts
+
+
+def save_account(
+    name: str,
+    account_type: str,
+    currency: str = BASE,
+    path: Path | None = None,
+) -> None:
+    account_type = account_type.lower()
+    _validate_account_type(name, account_type)
+
+    p = path or paths.accounts_path()
+    accounts = load_accounts(p)
+    accounts[name] = {"type": account_type, "currency": currency}
+
+    p.parent.mkdir(parents=True, exist_ok=True)
+    p.write_text(
+        json.dumps(accounts, indent=2, sort_keys=True, ensure_ascii=False) + "\n",
+        encoding="utf-8",
+    )
+
+
+def set_account_type(name: str, account_type: str, path: Path | None = None) -> None:
+    p = path or paths.accounts_path()
+    accounts = load_accounts(p)
+    if name not in accounts:
+        raise ValueError(f"account does not exist: {name}")
+
+    save_account(name, account_type, accounts[name]["currency"], p)
 
 
 def net_worth(
