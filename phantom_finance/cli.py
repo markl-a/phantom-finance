@@ -58,14 +58,34 @@ def main(argv: list[str] | None = None) -> int:
     p_acc_add.add_argument("name")
     p_acc_add.add_argument("--type", dest="account_type", choices=["cash", "asset"], required=True)
     p_acc_add.add_argument("--currency", default="TWD")
-    p_acc_list = acc_sub.add_parser("list")
+    acc_sub.add_parser("list")
     p_acc_set = acc_sub.add_parser("set-type")
     p_acc_set.add_argument("name")
     p_acc_set.add_argument("account_type", choices=["cash", "asset"])
 
     sub.add_parser("recat", help="re-run the categorizer on uncategorized txns")
 
-    sub.add_parser("recurring", help="list detected recurring charges / subscriptions")
+    p_rec = sub.add_parser(
+        "recurring",
+        help="detect + persist recurring charges; review them",
+    )
+    rec_sub = p_rec.add_subparsers(dest="recurring_cmd", required=False)
+    p_rec_rev = rec_sub.add_parser(
+        "review",
+        help="set review status for a recurring charge",
+    )
+    p_rec_rev.add_argument("key")
+    p_rec_rev.add_argument(
+        "--status",
+        choices=["new", "reviewed", "ignored"],
+        default="reviewed",
+    )
+    p_rec_list = rec_sub.add_parser("list", help="list persisted recurring charges")
+    p_rec_list.add_argument(
+        "--status",
+        choices=["new", "reviewed", "ignored"],
+        default=None,
+    )
 
     args = parser.parse_args(argv)
 
@@ -128,13 +148,38 @@ def main(argv: list[str] | None = None) -> int:
         ledger.rewrite(txns)
         print(f"re-categorized {changed} transactions")
 
+    elif args.cmd == "recurring" and getattr(args, "recurring_cmd", None) == "review":
+        try:
+            item = recurring.review(args.key, args.status)
+        except KeyError as e:
+            print(f"error: {e}", file=sys.stderr)
+            return 1
+        print(f"{item['key']}  status -> {item['status']}")
+
+    elif args.cmd == "recurring" and getattr(args, "recurring_cmd", None) == "list":
+        items = recurring.list_items(args.status)
+        if not items:
+            print("no recurring charges stored yet")
+        for it in items:
+            line = (
+                f"{it['key']:32s} {it['status']:8s} {it['cadence']:9s} "
+                f"~{it['amount']} last {it['last_seen']}"
+            )
+            if round(it["price_hike_pct"]) > 0:
+                line += f"  PRICE UP +{it['price_hike_pct']:.0f}%"
+            print(line)
+
     elif args.cmd == "recurring":
         charges = recurring.detect(ledger.load())
+        store = recurring.upsert(charges)
         if not charges:
             print("no recurring charges detected yet")
         for c in charges:
+            key = recurring.charge_key(c)
+            it = store.get(key, {})
             line = (
-                f"{c.merchant:24s} {c.cadence:9s} x{c.occurrences:<3d} "
+                f"{key:32s} {it.get('status', 'new'):8s} {c.cadence:9s} "
+                f"x{c.occurrences:<3d} "
                 f"~{c.typical_amount} latest {c.latest_amount}"
             )
             if c.price_increased:
