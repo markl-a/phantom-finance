@@ -66,6 +66,11 @@ def main(argv: list[str] | None = None) -> int:
     sub.add_parser("recat", help="re-run the categorizer on uncategorized txns")
 
     sub.add_parser("recurring", help="list detected recurring charges / subscriptions")
+    p_nw = sub.add_parser(
+        "net-worth",
+        help="show net worth (assets - liabilities) and spendable cash",
+    )
+    p_nw.add_argument("--currency", default="TWD")
 
     args = parser.parse_args(argv)
 
@@ -140,6 +145,13 @@ def main(argv: list[str] | None = None) -> int:
             if c.price_increased:
                 line += f"  PRICE UP +{c.pct_change:.0f}%"
             print(line)
+
+    elif args.cmd == "net-worth":
+        txns = ledger.load()
+        nw = networth.net_worth(txns, base=args.currency)
+        cash = networth.cashflow_total(txns, base=args.currency)
+        print(f"net worth: {nw} {args.currency}")
+        print(f"spendable cash: {cash} {args.currency}")
 
     return 0
 

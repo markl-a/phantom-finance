@@ -1,7 +1,7 @@
 import json
 from decimal import Decimal
 
-from phantom_finance import ledger, paths, reporter
+from phantom_finance import ledger, networth, paths, reporter
 from phantom_finance.ledger import Transaction
 
 
@@ -33,6 +33,12 @@ def test_render_is_shame_free():
     assert "housing: 18000" in text
     for shaming in ["overspent", "again", "fail", "bad", "should have"]:
         assert shaming not in text.lower()
+
+
+def test_render_shows_net_worth_and_spendable_cash():
+    text = reporter.render(SAMPLE, "2026-06")
+    assert f"- net worth: {networth.net_worth(SAMPLE)}" in text
+    assert f"- spendable cash: {networth.cashflow_total(SAMPLE)}" in text
 
 
 def test_write_report_creates_file_and_event():
