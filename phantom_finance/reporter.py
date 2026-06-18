@@ -9,7 +9,7 @@ from __future__ import annotations
 from decimal import Decimal
 from pathlib import Path
 
-from . import budget, events, ledger, networth, paths
+from . import budget, events, ledger, networth, paths, recurring
 from .ledger import Transaction
 
 
@@ -32,6 +32,7 @@ def month_summary(txns: list[Transaction], month: str) -> dict:
 def render(txns: list[Transaction], month: str) -> str:
     s = month_summary(txns, month)
     statuses = budget.check(txns, month)
+    hikes = recurring.price_hikes(txns)
     lines = [
         f"# phantom-finance · {month}",
         "",
@@ -57,6 +58,13 @@ def render(txns: list[Transaction], month: str) -> str:
             lines.append(
                 f"- {st.category}: {st.spent} / {st.limit} ({st.ratio:.0%}) — {mark}"
             )
+    if hikes:
+        lines += ["", "## Subscription price changes", ""]
+        for h in hikes:
+            lines.append(
+                f"- {h.merchant} ({h.cadence}): now {h.latest_amount}, up "
+                f"{h.pct_change:.0f}% — worth a look when you have a moment"
+            )
     lines += [
         "",
         "_Numbers are observations, not judgements. Adjust the plan, not yourself._",
@@ -70,6 +78,7 @@ def write_report(month: str, txns: list[Transaction] | None = None) -> Path:
     out = paths.reports_dir() / f"{month}-report.md"
     out.write_text(render(txns, month), encoding="utf-8")
     s = month_summary(txns, month)
+    hikes = recurring.price_hikes(txns)
     events.emit(
         "monthly-report",
         {
@@ -78,6 +87,15 @@ def write_report(month: str, txns: list[Transaction] | None = None) -> Path:
             "expense": str(s["expense"]),
             "net": str(s["net"]),
             "report_path": str(out),
+            "price_hikes": [
+                {
+                    "merchant": h.merchant,
+                    "cadence": h.cadence,
+                    "latest_amount": str(h.latest_amount),
+                    "pct_change": round(h.pct_change),
+                }
+                for h in hikes
+            ],
         },
     )
     return out
