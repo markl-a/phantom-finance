@@ -9,7 +9,7 @@ from __future__ import annotations
 from decimal import Decimal
 from pathlib import Path
 
-from . import budget, events, ledger, paths
+from . import budget, events, ledger, networth, paths
 from .ledger import Transaction
 
 
@@ -39,6 +39,8 @@ def render(txns: list[Transaction], month: str) -> str:
         f"- income: {s['income']}",
         f"- expense: {s['expense']}",
         f"- net: {s['net']}",
+        f"- net worth: {networth.net_worth(txns)}",
+        f"- spendable cash: {networth.cashflow_total(txns)}",
         "",
         "## Spending by category",
         "",
