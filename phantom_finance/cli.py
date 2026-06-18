@@ -16,7 +16,7 @@ from datetime import date
 from decimal import Decimal
 from pathlib import Path
 
-from . import budget, categorize, ingest, ledger, llm, presets, recurring, reporter
+from . import budget, categorize, ingest, ledger, llm, networth, presets, recurring, reporter
 from .ledger import Transaction, parse_amount
 
 
@@ -51,6 +51,17 @@ def main(argv: list[str] | None = None) -> int:
     p_set.add_argument("limit")
     p_show = bud_sub.add_parser("show")
     p_show.add_argument("--month", default=date.today().isoformat()[:7])
+
+    p_acc = sub.add_parser("account", help="manage account types")
+    acc_sub = p_acc.add_subparsers(dest="account_cmd", required=True)
+    p_acc_add = acc_sub.add_parser("add")
+    p_acc_add.add_argument("name")
+    p_acc_add.add_argument("--type", dest="account_type", choices=["cash", "asset"], required=True)
+    p_acc_add.add_argument("--currency", default="TWD")
+    p_acc_list = acc_sub.add_parser("list")
+    p_acc_set = acc_sub.add_parser("set-type")
+    p_acc_set.add_argument("name")
+    p_acc_set.add_argument("account_type", choices=["cash", "asset"])
 
     sub.add_parser("recat", help="re-run the categorizer on uncategorized txns")
 
@@ -90,6 +101,26 @@ def main(argv: list[str] | None = None) -> int:
         for st in statuses:
             mark = "over plan" if st.over else "ok"
             print(f"{st.category:15s} {st.spent:>10} / {st.limit:<10} {st.ratio:>5.0%}  {mark}")
+
+    elif args.cmd == "account" and args.account_cmd == "add":
+        networth.save_account(args.name, args.account_type, args.currency)
+        print(f"account added: {args.name} ({args.account_type.lower()}, {args.currency})")
+
+    elif args.cmd == "account" and args.account_cmd == "list":
+        accounts = networth.load_accounts()
+        if not accounts:
+            print("no accounts configured yet")
+        for name in sorted(accounts):
+            account = accounts[name]
+            print(f"{name}  {account['type']}  {account['currency']}")
+
+    elif args.cmd == "account" and args.account_cmd == "set-type":
+        try:
+            networth.set_account_type(args.name, args.account_type)
+        except ValueError as e:
+            print(f"error: {e}", file=sys.stderr)
+            return 1
+        print(f"account {args.name} type set to {args.account_type.lower()}")
 
     elif args.cmd == "recat":
         txns = ledger.load()
