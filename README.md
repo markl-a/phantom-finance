@@ -6,9 +6,10 @@
 > (LLM hook 已留好)+ 月預算 + shame-free 月報,所有資料 local-first 存在
 > `~/.phantom-mesh/`,報告 emit event 給 phantom-companion 做跨域 correlation。
 
-![status: alpha · Tier 1](https://img.shields.io/badge/status-alpha%20%C2%B7%20Tier%201-orange)
 ![license: Apache-2.0](https://img.shields.io/badge/license-Apache--2.0-blue)
 [![phantom-mesh ecosystem](https://img.shields.io/badge/ecosystem-phantom--mesh-purple)](https://github.com/markl-a/phantom-mesh)
+
+> 📖 **Docs:** [docs/INDEX.md](docs/INDEX.md) (navigation) · **Status:** see [ROADMAP.md](ROADMAP.md) (the single source of truth for what is shipped / in progress / planned).
 
 ## 一句話 niche
 
@@ -18,21 +19,14 @@
 然後變成 mesh event,讓 companion 能把「花費」跟「行為 / 健康 / 生產力」
 放在同一張圖上看。資料永遠在你自己機器上。
 
-## Status (2026-06-06)
+## Status
 
-- ✅ **Tier 1 shipped**:
-  - JSONL ledger(Decimal end-to-end,float 進不來;txn_id dedupe,重複匯入 idempotent)
-  - CSV ingest:中英文表頭自動偵測、BOM、`2026/6/1` / `20260601` / 民國 `115/06/01` 日期、`NT$1,234` 金額
-  - 規則分類器(中英關鍵字 80+ 條)+ **LLM fallback hook**(簽名已固定,Tier 2 接 phantom-mesh model router)
-  - 月預算 set / show + over-plan 偵測
-  - shame-free 月報 → `~/.phantom-mesh/logs/phantom-finance/` + event → `~/.phantom-mesh/events/`
-  - 台灣銀行 CSV preset(Cathay / CTBC / E.SUN / Taishin 欄位對應)+ `--bank` flag(無此 flag 維持自動偵測)— **對合成 fixture 驗證;真實對帳單驗證待樣本**
-- 🟡 **Tier 2 next**:LLM hook 接 phantom-mesh router、recurring charge 偵測(訂閱漲價警報)、companion 端 spend×behavior correlation。
-- 🟡 **Tier 3**:多幣別 + 匯率、資產帳戶(非現金流)、`phantom skill` 整合
-  (「這個月外食多少?」走 top-down skill)。
-- ⚠️ **Honest caveat**:Tier 1 是規則式 — 沒見過的中文商家會留在
-  `uncategorized` 等 `recat` 或 LLM hook。預算 / 報告對 `transfer` 類別自動排除,
-  但轉帳判斷也是規則式,搬大錢前先看一眼分類。
+完整的 shipped / in-progress / planned 狀態(含每項對應的 merge commit)以
+[ROADMAP.md](ROADMAP.md) 為唯一來源 — see **[ROADMAP.md](ROADMAP.md)**。
+
+> ⚠️ **Honest caveat**:分類是規則式的 — 沒見過的中文商家會留在
+> `uncategorized` 等 `recat` 或 LLM hook。預算 / 報告對 `transfer` 類別自動排除,
+> 但轉帳判斷也是規則式,搬大錢前先看一眼分類。
 
 ## 30-second quickstart
 
