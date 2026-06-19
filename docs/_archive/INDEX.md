@@ -1,3 +1,5 @@
+> ARCHIVED 2026-06-19 — 內容已併入 docs/phantom-finance.md;此為歷史版本。
+
 # Documentation index — phantom-finance
 
 > ⭐ Single navigation entry for this project's knowledge base. Each row links a

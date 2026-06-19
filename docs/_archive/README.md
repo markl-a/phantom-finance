@@ -1,15 +1,15 @@
 # Archive
 
-> Frozen historical snapshots live here. Current project status always lives in
-> [`/ROADMAP.md`](../../ROADMAP.md), never in this folder.
+> Frozen historical snapshots live here. The current single master document is
+> [`../phantom-finance.md`](../phantom-finance.md), never a file in this folder.
 
-Superseded or dated dev-logs are moved here with `git mv` (so history is
+Superseded docs are moved here (tracked ones with `git mv` so history is
 preserved) and get a tombstone line prepended:
 
 ```
-> ARCHIVED <date> — frozen historical snapshot; current status lives in /ROADMAP.md
+> ARCHIVED <date> — 內容已併入 docs/phantom-finance.md;此為歷史版本。
 ```
 
-This folder is currently empty of dev-logs: at the time of the knowledge-base
-consolidation (2026-06-19) the only committed docs were `README.md` and the
-roadmap, so there were no dated dev-logs to retire.
+Retired here in the 2026-06-19 one-document consolidation:
+`ROADMAP.md`, `ROADMAP.zh-TW.md`, `INDEX.md`, `OSS-LANDSCAPE-AND-DIRECTION.md` —
+all absorbed into `docs/phantom-finance.md`.

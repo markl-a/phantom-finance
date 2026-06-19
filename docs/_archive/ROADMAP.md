@@ -1,3 +1,5 @@
+> ARCHIVED 2026-06-19 — 內容已併入 docs/phantom-finance.md;此為歷史版本。
+
 # phantom-finance roadmap
 
 > ⭐ This file is the **single source of truth for project status.** README and other
