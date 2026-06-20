@@ -30,7 +30,20 @@ def load(path: Path | None = None) -> dict[str, Decimal]:
     p = path or paths.budgets_path()
     if not p.exists():
         return {}
-    raw = json.loads(p.read_text(encoding="utf-8"))
+
+    raw_text = p.read_text(encoding="utf-8")
+    if not raw_text.strip():
+        # a truncated / half-written file is treated as "no budgets", not a crash
+        return {}
+
+    try:
+        raw = json.loads(raw_text)
+    except json.JSONDecodeError as e:
+        raise ValueError(f"invalid budgets file {p}: {e.msg}") from e
+
+    if not isinstance(raw, dict):
+        raise ValueError(f"budgets file {p} must be a JSON object of category -> limit")
+
     return {k: Decimal(str(v)) for k, v in raw.items()}
 
 

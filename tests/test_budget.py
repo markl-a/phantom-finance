@@ -1,6 +1,8 @@
 from decimal import Decimal
 
-from phantom_finance import budget
+import pytest
+
+from phantom_finance import budget, paths
 from phantom_finance.ledger import Transaction
 
 
@@ -25,6 +27,31 @@ def test_spend_by_category_expenses_only_transfers_excluded():
 def test_save_load_roundtrip():
     budget.save({"dining": Decimal("6000")})
     assert budget.load() == {"dining": Decimal("6000")}
+
+
+def test_load_missing_file_is_empty():
+    assert budget.load() == {}
+
+
+def test_load_empty_file_is_empty():
+    # a truncated / half-written budgets.json must not crash budget show / report
+    paths.budgets_path().write_text("   \n", encoding="utf-8")
+    assert budget.load() == {}
+
+
+def test_load_malformed_file_raises_friendly_error():
+    p = paths.budgets_path()
+    p.write_text("not json {", encoding="utf-8")
+    with pytest.raises(ValueError) as exc:
+        budget.load()
+    # friendly message names the offending file (like the other stores)
+    assert str(p) in str(exc.value)
+
+
+def test_load_non_object_json_raises():
+    paths.budgets_path().write_text("[1, 2, 3]", encoding="utf-8")
+    with pytest.raises(ValueError):
+        budget.load()
 
 
 def test_check_flags_over_plan():
