@@ -57,18 +57,36 @@ class Transaction:
 
 
 def parse_amount(raw: str) -> Decimal:
-    """Parse '1,234.56' / '-120' / 'NT$300' style strings into Decimal."""
+    """Parse '1,234.56' / '-120' / 'NT$300' / '(1,234)' style strings into Decimal.
+
+    Accounting notation is honoured: a value wrapped in parentheses — e.g.
+    ``(1,234)`` or ``NT$(500)`` — is a negative (debit), as many bank and
+    credit-card CSV exports write expenses. A single trailing minus (``1234-``)
+    is likewise treated as negative. Leading/trailing whitespace, thousands
+    separators, and ``NT$`` / ``$`` / ``元`` symbols are stripped first.
+    """
     cleaned = (
         raw.strip()
         .replace(",", "")
         .replace("NT$", "")
         .replace("$", "")
         .replace("元", "")
+        .strip()
     )
+    negative = False
+    if cleaned.startswith("(") and cleaned.endswith(")"):
+        # accounting parentheses == negative (debit)
+        cleaned = cleaned[1:-1].strip()
+        negative = True
+    elif cleaned.endswith("-"):
+        # trailing-minus exports (e.g. "1234-")
+        cleaned = cleaned[:-1].strip()
+        negative = True
     try:
-        return Decimal(cleaned)
+        value = Decimal(cleaned)
     except InvalidOperation as e:
         raise ValueError(f"cannot parse amount: {raw!r}") from e
+    return -abs(value) if negative else value
 
 
 def load(path: Path | None = None) -> list[Transaction]:
