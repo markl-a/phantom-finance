@@ -62,3 +62,10 @@ ledger.jsonl
 budgets.json
 *.csv
 !tests/fixtures/*.csv
+
+# loop-scratch (autonomous dev loop artifacts — never publish; carry machine/path refs)
+.ai-shared/
+overnight/
+SESSION_RESUME.md
+cache/
+configs/agents.*.toml
