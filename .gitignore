@@ -48,6 +48,9 @@ Thumbs.db
 *.log
 .phantom-finance-state.json
 
+# local dev task scratch (never publish — carry machine/path refs)
+TASK-*.md
+
 # secrets — never commit real financial data
 .env
 .env.*

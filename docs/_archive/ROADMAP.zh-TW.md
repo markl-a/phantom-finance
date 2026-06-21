@@ -58,21 +58,21 @@ flowchart LR
 
 | 目標 | 具體項 | 在哪台機 + 哪個 AI | 風險 / 前置 |
 | --- | --- | --- | --- |
-| 讓 recurring 偵測變成可審狀態 | `recurring.json` 持久化 + 每筆 review 狀態(new/reviewed/ignored)+ `recurring review`/`recurring list` | z13(Win)編排把關;寫 codex/claude,審 codex+agy | 純本機、無新依賴;低風險。已有開發分支(見英文 ROADMAP) |
-| 月報送到手機 | 把現有 monthly-report event 推到 Telegram/phone(沿用 mesh,不開新 app) | z13 編排;Android/Termux worker 驗推送 | 需 mesh 通知通道;不可變成另一個要維護的 app(over-build) |
+| 讓 recurring 偵測變成可審狀態 | `recurring.json` 持久化 + 每筆 review 狀態(new/reviewed/ignored)+ `recurring review`/`recurring list` | orchestrator node (Win) 編排把關;寫 codex/claude,審 codex+agy | 純本機、無新依賴;低風險。已有開發分支(見英文 ROADMAP) |
+| 月報送到手機 | 把現有 monthly-report event 推到 Telegram/phone(沿用 mesh,不開新 app) | orchestrator node (Win) 編排;an Android worker 驗推送 | 需 mesh 通知通道;不可變成另一個要維護的 app(over-build) |
 
 ### 📅 階段二 — 讓資料可被問答
 
 | 目標 | 具體項 | 在哪台機 + 哪個 AI | 風險 / 前置 |
 | --- | --- | --- | --- |
-| 自然語言問帳 | `phantom skill`:回答「這個月外食多少?」用 skill 而非寫死指令,走 mesh model router / Ollama | z13 編排;acer/ayaneo(Win)on-demand 跑 Python | LLM 必須**預設 off + offline-safe**(現有 `llm.py` 已是);🧭 候選參考 `simonw/llm` 的 provider 形狀,**非依賴** |
+| 自然語言問帳 | `phantom skill`:回答「這個月外食多少?」用 skill 而非寫死指令,走 mesh model router / Ollama | orchestrator node (Win) 編排;a Windows node on-demand 跑 Python | LLM 必須**預設 off + offline-safe**(現有 `llm.py` 已是);🧭 候選參考 `simonw/llm` 的 provider 形狀,**非依賴** |
 
 ### 🔭 階段三 — 護城河(較遠)
 
 | 目標 | 具體項 | 在哪台機 + 哪個 AI | 風險 / 前置 |
 | --- | --- | --- | --- |
-| 花費 × 行為 × 健康關聯 | companion 端 correlation 模組,消費 phantom-finance 發出的 events | z13 編排;M5/M1 Mac 做 Apple surfaces | **前置 = companion keystone 工作**(跨專案依賴);這是沒有任何 OSS 財務工具在做的事 = 存在理由,要 **build 不 adopt** |
-| (僅在真有需求時)PTA 互通 | 可選 Beancount/hledger **匯出**(檔案格式級,非 import) | acer/ayaneo on-demand | 🧭 候選;Beancount/hledger 是 GPL,只能**格式級互通**,import 會 GPL 耦合(見 landscape §5)。多數單人情境永遠用不到 |
+| 花費 × 行為 × 健康關聯 | companion 端 correlation 模組,消費 phantom-finance 發出的 events | orchestrator node (Win) 編排;a Mac node 做 Apple surfaces | **前置 = companion keystone 工作**(跨專案依賴);這是沒有任何 OSS 財務工具在做的事 = 存在理由,要 **build 不 adopt** |
+| (僅在真有需求時)PTA 互通 | 可選 Beancount/hledger **匯出**(檔案格式級,非 import) | a Windows node on-demand | 🧭 候選;Beancount/hledger 是 GPL,只能**格式級互通**,import 會 GPL 耦合(見 landscape §5)。多數單人情境永遠用不到 |
 
 ## ③ 刻意不做 / over-build 風險
 
