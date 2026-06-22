@@ -43,6 +43,7 @@ def main(argv: list[str] | None = None) -> int:
 
     p_rep = sub.add_parser("report", help="write the monthly report")
     p_rep.add_argument("--month", default=date.today().isoformat()[:7])
+    p_rep.add_argument("--quarter", help="write a quarterly report instead, e.g. 2026Q2")
 
     p_bud = sub.add_parser("budget", help="set / show monthly budgets")
     bud_sub = p_bud.add_subparsers(dest="budget_cmd", required=True)
@@ -95,7 +96,10 @@ def main(argv: list[str] | None = None) -> int:
         print(f"imported {len(written)} new transactions from {args.csv_path.name}")
 
     elif args.cmd == "report":
-        out = reporter.write_report(args.month)
+        if getattr(args, "quarter", None):
+            out = reporter.write_quarter_report(args.quarter)
+        else:
+            out = reporter.write_report(args.month)
         print(f"report written: {out}")
 
     elif args.cmd == "budget" and args.budget_cmd == "set":

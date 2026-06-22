@@ -28,3 +28,23 @@ def test_render_includes_tax_section():
     assert "可扣抵候選" in md
     # safety: it is prep, not advice
     assert "非稅務建議" in md
+
+
+from phantom_finance import paths
+
+
+def test_quarter_months_expands_correctly():
+    assert reporter.quarter_months("2026Q2") == ["2026-04", "2026-05", "2026-06"]
+
+
+def test_write_quarter_report_aggregates_three_months(monkeypatch):
+    txns = [
+        Transaction(date="2026-04-10", amount=Decimal("30000"), description="接案", category="income"),
+        Transaction(date="2026-06-10", amount=Decimal("20000"), description="顧問費", category="income"),
+    ]
+    out = reporter.write_quarter_report("2026Q2", txns=txns)
+    assert out.exists()
+    body = out.read_text(encoding="utf-8")
+    assert "2026Q2" in body
+    assert "報稅摘要" in body
+    assert "50000" in body  # 9A income aggregated across the quarter

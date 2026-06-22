@@ -118,6 +118,30 @@ def render(txns: list[Transaction], month: str) -> str:
     return "\n".join(lines)
 
 
+def quarter_months(quarter: str) -> list[str]:
+    """'2026Q2' -> ['2026-04','2026-05','2026-06']."""
+    year, q = quarter.upper().split("Q")
+    first = (int(q) - 1) * 3 + 1
+    return [f"{year}-{first + i:02d}" for i in range(3)]
+
+
+def render_quarter(txns: list[Transaction], quarter: str) -> str:
+    months = quarter_months(quarter)
+    qtxns = [t for t in txns if t.month in months]
+    parts = [f"# phantom-finance · {quarter} (季報)", ""]
+    for m in months:
+        parts.append(render(qtxns, m))
+        parts.append("")
+    return "\n".join(parts)
+
+
+def write_quarter_report(quarter: str, txns: list[Transaction] | None = None) -> Path:
+    txns = ledger.load() if txns is None else txns
+    out = paths.reports_dir() / f"{quarter}-report.md"
+    out.write_text(render_quarter(txns, quarter), encoding="utf-8")
+    return out
+
+
 def write_report(month: str, txns: list[Transaction] | None = None) -> Path:
     txns = ledger.load() if txns is None else txns
     out = paths.reports_dir() / f"{month}-report.md"
