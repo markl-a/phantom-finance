@@ -26,6 +26,14 @@ INCOME_TYPE_RULES: dict[str, str] = {
 # 接案族 default: unknown professional income is a 9A candidate (most common case)
 DEFAULT_INCOME_TYPE = "9A"
 
+# expense categories (from categorize.py) that MIGHT be business-deductible.
+# "candidate" only — the operator / 記帳士 confirms; never auto-claimed.
+DEDUCTIBLE_CANDIDATE_CATEGORIES: set[str] = {
+    "utilities", "transport", "subscription", "equipment", "software", "office",
+}
+# single income payment at/above this triggers 二代健保補充保費 (2.11%)
+NHI_SUPPLEMENT_THRESHOLD = Decimal("20000")
+
 
 @dataclass(frozen=True)
 class TaxInfo:
@@ -49,12 +57,12 @@ def classify(txn: Transaction) -> TaxInfo:
         return TaxInfo(
             income_type=itype,
             deductible_candidate=False,
-            nhi_supplement_flag=False,  # filled in Task 4
-            withholding_flag=False,     # filled in Task 4
+            nhi_supplement_flag=txn.amount >= NHI_SUPPLEMENT_THRESHOLD,
+            withholding_flag=itype == "9A",
         )
     return TaxInfo(
         income_type=None,
-        deductible_candidate=False,  # filled in Task 4
+        deductible_candidate=txn.category in DEDUCTIBLE_CANDIDATE_CATEGORIES,
         nhi_supplement_flag=False,
         withholding_flag=False,
     )

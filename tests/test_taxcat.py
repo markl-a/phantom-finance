@@ -31,3 +31,27 @@ def test_unknown_income_defaults_to_9a_for_freelancers():
 
 def test_expense_has_no_income_type():
     assert taxcat.classify(inc("全聯", "-500")).income_type is None
+
+
+def test_business_category_expense_is_deductible_candidate():
+    t = inc("中華電信 網路費", "-899")
+    t.category = "utilities"
+    assert taxcat.classify(t).deductible_candidate is True
+
+
+def test_personal_category_expense_is_not_deductible():
+    t = inc("星巴克", "-160")
+    t.category = "dining"
+    assert taxcat.classify(t).deductible_candidate is False
+
+
+def test_large_single_income_flags_nhi_supplement():
+    # single payment >= NT$20,000 triggers 二代健保補充保費 (2.11%)
+    assert taxcat.classify(inc("接案款", "20000")).nhi_supplement_flag is True
+    assert taxcat.classify(inc("接案款", "19999")).nhi_supplement_flag is False
+
+
+def test_9a_income_flags_withholding():
+    assert taxcat.classify(inc("顧問費", "30000")).withholding_flag is True
+    # salary / other income are not 9A withholding
+    assert taxcat.classify(inc("薪資", "50000")).withholding_flag is False
