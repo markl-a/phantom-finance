@@ -39,6 +39,25 @@ def test_parse_amount_formats():
         parse_amount("not money")
 
 
+def test_parse_amount_accounting_parentheses_is_negative():
+    # accounting / bank-CSV notation: (1,234) == a debit == negative
+    assert parse_amount("(1,234)") == Decimal("-1234")
+    assert parse_amount("(500)") == Decimal("-500")
+    assert parse_amount("NT$(1,234.50)") == Decimal("-1234.50")
+    # a positive value is untouched
+    assert parse_amount("1,234") == Decimal("1234")
+
+
+def test_parse_amount_trailing_minus_is_negative():
+    assert parse_amount("1234-") == Decimal("-1234")
+    assert parse_amount("1,234.50-") == Decimal("-1234.50")
+
+
+def test_parse_amount_unbalanced_parenthesis_still_errors():
+    with pytest.raises(ValueError):
+        parse_amount("(500")
+
+
 def test_rewrite_replaces_ledger():
     t1 = Transaction(date="2026-06-01", amount=Decimal("-1"), description="a")
     t2 = Transaction(date="2026-06-02", amount=Decimal("-2"), description="b")

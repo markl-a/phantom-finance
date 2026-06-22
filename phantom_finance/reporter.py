@@ -6,10 +6,11 @@ is shaming and structurally impossible here (no such templates exist).
 
 from __future__ import annotations
 
+import re
 from decimal import Decimal
 from pathlib import Path
 
-from . import budget, events, ledger, networth, paths, recurring
+from . import budget, events, ledger, networth, paths, recurring, taxcat
 from .ledger import Transaction
 
 
@@ -26,6 +27,32 @@ def month_summary(txns: list[Transaction], month: str) -> dict:
         "expense": expense,
         "net": income - expense,
         "by_category": top,
+    }
+
+
+def tax_summary(txns: list[Transaction], month: str) -> dict:
+    in_month = [t for t in txns if t.month == month]
+    income_by_type: dict[str, Decimal] = {}
+    deductible: list[tuple[str, Decimal]] = []
+    nhi = 0
+    withholding = 0
+    for t in in_month:
+        info = taxcat.classify(t)
+        if info.income_type:
+            income_by_type[info.income_type] = (
+                income_by_type.get(info.income_type, Decimal(0)) + t.amount
+            )
+        if info.deductible_candidate:
+            deductible.append((t.description, -t.amount))
+        if info.nhi_supplement_flag:
+            nhi += 1
+        if info.withholding_flag:
+            withholding += 1
+    return {
+        "income_by_type": income_by_type,
+        "deductible_candidates": deductible,
+        "nhi_supplement_count": nhi,
+        "withholding_count": withholding,
     }
 
 
@@ -65,6 +92,25 @@ def render(txns: list[Transaction], month: str) -> str:
                 f"- {h.merchant} ({h.cadence}): now {h.latest_amount}, up "
                 f"{h.pct_change:.0f}% — worth a look when you have a moment"
             )
+    tax = tax_summary(txns, month)
+    lines += ["", "## 報稅摘要 (tax prep · 非稅務建議,給你或你的記帳士核對)", ""]
+    if tax["income_by_type"]:
+        for itype, amount in sorted(tax["income_by_type"].items()):
+            lines.append(f"- 收入 {itype}: {amount}")
+    else:
+        lines.append("- (本月無收入交易)")
+    if tax["deductible_candidates"]:
+        lines.append("- 可扣抵候選:")
+        for desc, amount in tax["deductible_candidates"]:
+            lines.append(f"  - {desc}: {amount}")
+    if tax["nhi_supplement_count"]:
+        lines.append(
+            f"- 二代健保補充保費旗標: {tax['nhi_supplement_count']} 筆單筆收入 ≥ NT$20,000(需核對)"
+        )
+    if tax["withholding_count"]:
+        lines.append(
+            f"- 扣繳旗標: {tax['withholding_count']} 筆 9A 收入(請核對是否已預扣 10%)"
+        )
     lines += [
         "",
         "_Numbers are observations, not judgements. Adjust the plan, not yourself._",
@@ -73,12 +119,87 @@ def render(txns: list[Transaction], month: str) -> str:
     return "\n".join(lines)
 
 
+def quarter_months(quarter: str) -> list[str]:
+    """'2026Q2' -> ['2026-04','2026-05','2026-06']."""
+    norm = quarter.upper().strip()
+    if not re.fullmatch(r"\d{4}Q[1-4]", norm):
+        raise ValueError(f"bad quarter {quarter!r}, expected e.g. 2026Q2")
+    year, q = norm.split("Q")
+    first = (int(q) - 1) * 3 + 1
+    return [f"{year}-{first + i:02d}" for i in range(3)]
+
+
+def quarter_tax_summary(txns: list[Transaction], quarter: str) -> dict:
+    """Quarter-LEVEL tax roll-up (spec §4 P1): sums across all three months so the
+    operator / 記帳士 sees the quarter total no single monthly section shows."""
+    months = set(quarter_months(quarter))
+    in_quarter = [t for t in txns if t.month in months]
+    income_by_type: dict[str, Decimal] = {}
+    deductible_total = Decimal(0)
+    nhi = 0
+    withholding = 0
+    for t in in_quarter:
+        info = taxcat.classify(t)
+        if info.income_type:
+            income_by_type[info.income_type] = (
+                income_by_type.get(info.income_type, Decimal(0)) + t.amount
+            )
+        if info.deductible_candidate:
+            deductible_total += -t.amount
+        if info.nhi_supplement_flag:
+            nhi += 1
+        if info.withholding_flag:
+            withholding += 1
+    return {
+        "income_by_type": income_by_type,
+        "deductible_total": deductible_total,
+        "nhi_supplement_count": nhi,
+        "withholding_count": withholding,
+    }
+
+
+def render_quarter(txns: list[Transaction], quarter: str) -> str:
+    months = quarter_months(quarter)
+    qtxns = [t for t in txns if t.month in months]
+    qtax = quarter_tax_summary(qtxns, quarter)
+    parts = [f"# phantom-finance · {quarter} (季報)", ""]
+    # Quarter-level roll-up FIRST: 本季收入/可扣抵/應留意 彙整 across the whole quarter.
+    parts += ["## 本季彙整 (quarter roll-up)", ""]
+    if qtax["income_by_type"]:
+        for itype, amount in sorted(qtax["income_by_type"].items()):
+            parts.append(f"- 收入 {itype}: {amount}")
+    else:
+        parts.append("- (本季無收入交易)")
+    parts.append(f"- 可扣抵候選合計: {qtax['deductible_total']}")
+    if qtax["nhi_supplement_count"]:
+        parts.append(
+            f"- 二代健保補充保費旗標: {qtax['nhi_supplement_count']} 筆單筆收入 ≥ NT$20,000(需核對)"
+        )
+    if qtax["withholding_count"]:
+        parts.append(
+            f"- 扣繳旗標: {qtax['withholding_count']} 筆 9A 收入(請核對是否已預扣 10%)"
+        )
+    parts.append("")
+    for m in months:
+        parts.append(render(qtxns, m))
+        parts.append("")
+    return "\n".join(parts)
+
+
+def write_quarter_report(quarter: str, txns: list[Transaction] | None = None) -> Path:
+    txns = ledger.load() if txns is None else txns
+    out = paths.reports_dir() / f"{quarter}-report.md"
+    out.write_text(render_quarter(txns, quarter), encoding="utf-8")
+    return out
+
+
 def write_report(month: str, txns: list[Transaction] | None = None) -> Path:
     txns = ledger.load() if txns is None else txns
     out = paths.reports_dir() / f"{month}-report.md"
     out.write_text(render(txns, month), encoding="utf-8")
     s = month_summary(txns, month)
     hikes = recurring.price_hikes(txns)
+    tax = tax_summary(txns, month)
     events.emit(
         "monthly-report",
         {
@@ -86,6 +207,8 @@ def write_report(month: str, txns: list[Transaction] | None = None) -> Path:
             "income": str(s["income"]),
             "expense": str(s["expense"]),
             "net": str(s["net"]),
+            "income_by_tax_type": {k: str(v) for k, v in tax["income_by_type"].items()},
+            "nhi_supplement_count": tax["nhi_supplement_count"],
             "report_path": str(out),
             "price_hikes": [
                 {

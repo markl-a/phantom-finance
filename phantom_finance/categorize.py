@@ -74,6 +74,31 @@ def load_user_rules(path: Path | None = None) -> dict[str, str]:
     return {str(k).lower(): str(v) for k, v in data.items()}
 
 
+def derive_keyword(description: str) -> str:
+    """Turn a raw transaction description into a stable, reusable rule keyword.
+
+    Rules match by lowercase substring (see categorize_one) against the raw
+    description WITHOUT collapsing internal whitespace, so the keyword must be
+    the lowercased, trimmed description (no whitespace collapse) to remain a
+    substring of its own source. Kept deliberately simple: a human can edit
+    rules.json afterwards to broaden/narrow the match.
+    """
+    return description.strip().lower()
+
+
+def add_user_rule(keyword: str, category: str, path: Path | None = None) -> None:
+    """Persist a single keyword->category rule to the user rules file (merge, not
+    clobber). Written as pretty UTF-8 JSON so it stays human-readable + editable."""
+    p = path or paths.rules_path()
+    rules = load_user_rules(p)
+    rules[keyword.strip().lower()] = category
+    p.parent.mkdir(parents=True, exist_ok=True)
+    p.write_text(
+        json.dumps(rules, ensure_ascii=False, indent=2, sort_keys=True) + "\n",
+        encoding="utf-8",
+    )
+
+
 def effective_rules(extra: dict[str, str] | None = None) -> dict[str, str]:
     merged = dict(load_user_rules())
     for k, v in (extra or {}).items():
