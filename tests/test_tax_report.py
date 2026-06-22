@@ -37,6 +37,14 @@ def test_quarter_months_expands_correctly():
     assert reporter.quarter_months("2026Q2") == ["2026-04", "2026-05", "2026-06"]
 
 
+def test_quarter_months_rejects_bad_format():
+    import pytest
+
+    for bad in ("2026Q5", "2026", "garbage"):
+        with pytest.raises(ValueError, match="quarter"):
+            reporter.quarter_months(bad)
+
+
 def test_write_quarter_report_aggregates_three_months(monkeypatch):
     txns = [
         Transaction(date="2026-04-10", amount=Decimal("30000"), description="接案", category="income"),

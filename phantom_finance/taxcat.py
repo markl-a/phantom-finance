@@ -52,6 +52,15 @@ def _income_type(description: str) -> str:
 
 
 def classify(txn: Transaction) -> TaxInfo:
+    # Transfers (incoming/outgoing transfer, refund, ATM deposit) are not income or
+    # expense for tax purposes — consistent with reporter.month_summary excluding them.
+    if txn.category == "transfer":
+        return TaxInfo(
+            income_type=None,
+            deductible_candidate=False,
+            nhi_supplement_flag=False,
+            withholding_flag=False,
+        )
     if txn.amount > 0:
         itype = _income_type(txn.description)
         return TaxInfo(

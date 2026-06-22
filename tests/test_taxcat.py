@@ -55,3 +55,13 @@ def test_9a_income_flags_withholding():
     assert taxcat.classify(inc("顧問費", "30000")).withholding_flag is True
     # salary / other income are not 9A withholding
     assert taxcat.classify(inc("薪資", "50000")).withholding_flag is False
+
+
+def test_positive_transfer_is_not_taxable_income():
+    # a positive transfer (incoming transfer / refund / ATM deposit) is NOT income
+    t = inc("ATM 存款", "25000")
+    t.category = "transfer"
+    info = taxcat.classify(t)
+    assert info.income_type is None
+    assert info.nhi_supplement_flag is False
+    assert info.withholding_flag is False

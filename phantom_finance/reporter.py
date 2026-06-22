@@ -6,6 +6,7 @@ is shaming and structurally impossible here (no such templates exist).
 
 from __future__ import annotations
 
+import re
 from decimal import Decimal
 from pathlib import Path
 
@@ -120,7 +121,10 @@ def render(txns: list[Transaction], month: str) -> str:
 
 def quarter_months(quarter: str) -> list[str]:
     """'2026Q2' -> ['2026-04','2026-05','2026-06']."""
-    year, q = quarter.upper().split("Q")
+    norm = quarter.upper().strip()
+    if not re.fullmatch(r"\d{4}Q[1-4]", norm):
+        raise ValueError(f"bad quarter {quarter!r}, expected e.g. 2026Q2")
+    year, q = norm.split("Q")
     first = (int(q) - 1) * 3 + 1
     return [f"{year}-{first + i:02d}" for i in range(3)]
 

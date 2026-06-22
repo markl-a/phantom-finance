@@ -35,6 +35,12 @@ def test_added_rule_is_used_by_categorizer():
     assert categorize.categorize_one(txn("某神秘商店 信義店")) == "shopping"
 
 
+def test_learned_rule_matches_multi_space_description():
+    # a multi-space description must yield a keyword that is a substring of itself
+    categorize.add_user_rule(categorize.derive_keyword("路邊   滷味"), "street-food")
+    assert categorize.categorize_one(txn("路邊   滷味 信義")) == "street-food"
+
+
 from phantom_finance import cli, ledger
 
 

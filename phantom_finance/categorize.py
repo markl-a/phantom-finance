@@ -77,11 +77,13 @@ def load_user_rules(path: Path | None = None) -> dict[str, str]:
 def derive_keyword(description: str) -> str:
     """Turn a raw transaction description into a stable, reusable rule keyword.
 
-    Rules match by lowercase substring (see categorize_one), so the keyword is
-    the lowercased, whitespace-collapsed description. Kept deliberately simple:
-    a human can edit rules.json afterwards to broaden/narrow the match.
+    Rules match by lowercase substring (see categorize_one) against the raw
+    description WITHOUT collapsing internal whitespace, so the keyword must be
+    the lowercased, trimmed description (no whitespace collapse) to remain a
+    substring of its own source. Kept deliberately simple: a human can edit
+    rules.json afterwards to broaden/narrow the match.
     """
-    return " ".join(description.split()).lower()
+    return description.strip().lower()
 
 
 def add_user_rule(keyword: str, category: str, path: Path | None = None) -> None:
