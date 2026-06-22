@@ -33,3 +33,36 @@ def test_add_user_rule_merges_without_clobbering_existing():
 def test_added_rule_is_used_by_categorizer():
     categorize.add_user_rule("某神秘商店", "shopping")
     assert categorize.categorize_one(txn("某神秘商店 信義店")) == "shopping"
+
+
+from phantom_finance import cli, ledger
+
+
+def test_recat_manual_correction_persists_rule_and_backfills():
+    # two txns from the same merchant land uncategorized
+    ledger.append([
+        Transaction(date="2026-06-01", amount=Decimal("-250"), description="路邊滷味攤 信義"),
+        Transaction(date="2026-06-09", amount=Decimal("-300"), description="路邊滷味攤 大安"),
+    ])
+    # operator corrects ONE: recat <match> <category>
+    rc = cli.main(["recat", "路邊滷味攤", "street-food"])
+    assert rc == 0
+    # both existing txns are backfilled
+    cats = {t.category for t in ledger.load()}
+    assert cats == {"street-food"}
+    # the correction became a durable rule
+    assert categorize.load_user_rules()["路邊滷味攤"] == "street-food"
+
+
+def test_recat_learned_rule_categorizes_future_import_offline():
+    cli.main(["recat", "路邊滷味攤", "street-food"])
+    # a NEW transaction from the same merchant, categorized with NO llm
+    t = Transaction(date="2026-07-02", amount=Decimal("-180"), description="路邊滷味攤 內湖")
+    assert categorize.categorize_one(t, llm=None) == "street-food"
+
+
+def test_recat_no_args_still_reruns_uncategorized():
+    ledger.append([Transaction(date="2026-06-01", amount=Decimal("-100"), description="全聯 週末")])
+    rc = cli.main(["recat"])
+    assert rc == 0
+    assert ledger.load()[0].category == "groceries"

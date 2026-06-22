@@ -63,7 +63,12 @@ def main(argv: list[str] | None = None) -> int:
     p_acc_set.add_argument("name")
     p_acc_set.add_argument("account_type", choices=["cash", "asset"])
 
-    sub.add_parser("recat", help="re-run the categorizer on uncategorized txns")
+    p_recat = sub.add_parser(
+        "recat",
+        help="re-categorize; with MATCH CATEGORY, correct + learn a durable rule",
+    )
+    p_recat.add_argument("match", nargs="?", help="substring of the description to correct")
+    p_recat.add_argument("category", nargs="?", help="category to assign + remember")
 
     sub.add_parser("recurring", help="list detected recurring charges / subscriptions")
     p_nw = sub.add_parser(
@@ -129,9 +134,24 @@ def main(argv: list[str] | None = None) -> int:
 
     elif args.cmd == "recat":
         txns = ledger.load()
-        changed = categorize.apply(txns, llm=llm.make_categorizer())
-        ledger.rewrite(txns)
-        print(f"re-categorized {changed} transactions")
+        if args.match and args.category:
+            # manual correction: learn a durable rule, then backfill every match
+            keyword = categorize.derive_keyword(args.match)
+            categorize.add_user_rule(keyword, args.category)
+            changed = 0
+            for t in txns:
+                if keyword in t.description.lower() and t.category != args.category:
+                    t.category = args.category
+                    changed += 1
+            ledger.rewrite(txns)
+            print(f"learned rule {keyword!r} -> {args.category}; backfilled {changed} txns")
+        elif args.match or args.category:
+            print("usage: phantom-finance recat [MATCH CATEGORY]", file=sys.stderr)
+            return 2
+        else:
+            changed = categorize.apply(txns, llm=llm.make_categorizer())
+            ledger.rewrite(txns)
+            print(f"re-categorized {changed} transactions")
 
     elif args.cmd == "recurring":
         charges = recurring.detect(ledger.load())
