@@ -47,4 +47,7 @@ def test_write_quarter_report_aggregates_three_months(monkeypatch):
     body = out.read_text(encoding="utf-8")
     assert "2026Q2" in body
     assert "報稅摘要" in body
-    assert "50000" in body  # 9A income aggregated across the quarter
+    # genuine quarter-level roll-up: the 50000 total appears in NO single monthly
+    # section (April shows 30000, June shows 20000) — only the quarter roll-up.
+    assert "本季彙整" in body
+    assert "9A: 50000" in body
