@@ -6,12 +6,15 @@ is shaming and structurally impossible here (no such templates exist).
 
 from __future__ import annotations
 
+import json
 import re
 from decimal import Decimal
 from pathlib import Path
 
 from . import budget, events, ledger, networth, paths, recurring, taxcat
 from .ledger import Transaction
+
+SUMMARY_SCHEMA_VERSION = 1
 
 
 def month_summary(txns: list[Transaction], month: str) -> dict:
@@ -28,6 +31,79 @@ def month_summary(txns: list[Transaction], month: str) -> dict:
         "net": income - expense,
         "by_category": top,
     }
+
+
+def monthly_summary_artifact(
+    txns: list[Transaction],
+    month: str,
+    base_currency: str = "TWD",
+) -> dict:
+    """Aggregate-only machine-readable monthly summary.
+
+    This intentionally omits transaction descriptions and raw rows. It is safe
+    for local automation and tests while keeping financial detail in the ledger.
+    """
+    s = month_summary(txns, month)
+    statuses = budget.check(txns, month)
+    return {
+        "schema_version": SUMMARY_SCHEMA_VERSION,
+        "month": month,
+        "currency": base_currency,
+        "transaction_count": s["txn_count"],
+        "income": str(s["income"]),
+        "expense": str(s["expense"]),
+        "net": str(s["net"]),
+        "net_worth": str(networth.net_worth(txns, base_currency)),
+        "spendable_cash": str(networth.cashflow_total(txns, base_currency)),
+        "by_category": [
+            {"category": cat, "amount": str(amount)}
+            for cat, amount in s["by_category"]
+        ],
+        "budgets": [
+            {
+                "category": st.category,
+                "spent": str(st.spent),
+                "limit": str(st.limit),
+                "ratio": round(st.ratio, 4),
+                "over": st.over,
+            }
+            for st in statuses
+        ],
+    }
+
+
+def render_summary_text(payload: dict) -> str:
+    lines = [
+        f"month: {payload['month']}",
+        f"transactions: {payload['transaction_count']}",
+        f"income: {payload['income']} {payload['currency']}",
+        f"expense: {payload['expense']} {payload['currency']}",
+        f"net: {payload['net']} {payload['currency']}",
+        f"net worth: {payload['net_worth']} {payload['currency']}",
+        f"spendable cash: {payload['spendable_cash']} {payload['currency']}",
+    ]
+    if payload["by_category"]:
+        lines.append("by category:")
+        for row in payload["by_category"]:
+            lines.append(f"- {row['category']}: {row['amount']}")
+    if payload["budgets"]:
+        lines.append("budgets:")
+        for row in payload["budgets"]:
+            mark = "over plan" if row["over"] else "ok"
+            lines.append(
+                f"- {row['category']}: {row['spent']} / {row['limit']} "
+                f"({row['ratio']:.0%}) {mark}"
+            )
+    return "\n".join(lines)
+
+
+def write_summary_artifact(payload: dict, path: Path) -> Path:
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text(
+        json.dumps(payload, ensure_ascii=False, indent=2) + "\n",
+        encoding="utf-8",
+    )
+    return path
 
 
 def tax_summary(txns: list[Transaction], month: str) -> dict:
@@ -164,7 +240,7 @@ def render_quarter(txns: list[Transaction], quarter: str) -> str:
     qtax = quarter_tax_summary(qtxns, quarter)
     parts = [f"# phantom-finance · {quarter} (季報)", ""]
     # Quarter-level roll-up FIRST: 本季收入/可扣抵/應留意 彙整 across the whole quarter.
-    parts += ["## 本季彙整 (quarter roll-up)", ""]
+    parts += ["## 本季彙整 (quarter roll-up · 非稅務建議)", ""]
     if qtax["income_by_type"]:
         for itype, amount in sorted(qtax["income_by_type"].items()):
             parts.append(f"- 收入 {itype}: {amount}")

@@ -11,12 +11,13 @@
 from __future__ import annotations
 
 import argparse
+import json
 import sys
 from datetime import date
 from decimal import Decimal
 from pathlib import Path
 
-from . import budget, categorize, ingest, ledger, llm, networth, presets, recurring, reporter
+from . import budget, categorize, ingest, ledger, llm, networth, presets, recurring, reporter, scenario
 from .ledger import Transaction, parse_amount
 
 
@@ -45,6 +46,12 @@ def main(argv: list[str] | None = None) -> int:
     p_rep.add_argument("--month", default=date.today().isoformat()[:7])
     p_rep.add_argument("--quarter", help="write a quarterly report instead, e.g. 2026Q2")
 
+    p_sum = sub.add_parser("summary", help="print or write aggregate monthly JSON/text")
+    p_sum.add_argument("--month", default=date.today().isoformat()[:7])
+    p_sum.add_argument("--currency", default="TWD")
+    p_sum.add_argument("--json", action="store_true", help="print stable JSON")
+    p_sum.add_argument("--out", type=Path, help="write stable JSON artifact to this path")
+
     p_bud = sub.add_parser("budget", help="set / show monthly budgets")
     bud_sub = p_bud.add_subparsers(dest="budget_cmd", required=True)
     p_set = bud_sub.add_parser("set")
@@ -72,6 +79,16 @@ def main(argv: list[str] | None = None) -> int:
     p_recat.add_argument("category", nargs="?", help="category to assign + remember")
 
     sub.add_parser("recurring", help="list detected recurring charges / subscriptions")
+    p_scenario = sub.add_parser(
+        "scenario-demo",
+        help="write a synthetic subscription/scenario artifact bundle",
+    )
+    p_scenario.add_argument("--out", type=Path, required=True)
+    p_planning = sub.add_parser(
+        "planning-scenario",
+        help="write a synthetic recurring/net-worth planning scenario bundle",
+    )
+    p_planning.add_argument("--out", type=Path, required=True)
     p_nw = sub.add_parser(
         "net-worth",
         help="show net worth (assets - liabilities) and spendable cash",
@@ -101,6 +118,17 @@ def main(argv: list[str] | None = None) -> int:
         else:
             out = reporter.write_report(args.month)
         print(f"report written: {out}")
+
+    elif args.cmd == "summary":
+        payload = reporter.monthly_summary_artifact(
+            ledger.load(), args.month, base_currency=args.currency
+        )
+        if args.out:
+            reporter.write_summary_artifact(payload, args.out)
+        if args.json:
+            print(json.dumps(payload, ensure_ascii=False, indent=2))
+        else:
+            print(reporter.render_summary_text(payload))
 
     elif args.cmd == "budget" and args.budget_cmd == "set":
         budgets = budget.load()
@@ -169,6 +197,29 @@ def main(argv: list[str] | None = None) -> int:
             if c.price_increased:
                 line += f"  PRICE UP +{c.pct_change:.0f}%"
             print(line)
+
+    elif args.cmd == "scenario-demo":
+        out_dir = scenario.write_scenario_demo_bundle(args.out)
+        print(
+            json.dumps(
+                {"out_dir": str(out_dir), "artifacts": scenario.PUBLIC_ARTIFACTS},
+                ensure_ascii=False,
+                indent=2,
+            )
+        )
+
+    elif args.cmd == "planning-scenario":
+        out_dir = scenario.write_planning_scenario_bundle(args.out)
+        print(
+            json.dumps(
+                {
+                    "out_dir": str(out_dir),
+                    "artifacts": scenario.PLANNING_SCENARIO_ARTIFACTS,
+                },
+                ensure_ascii=False,
+                indent=2,
+            )
+        )
 
     elif args.cmd == "net-worth":
         txns = ledger.load()

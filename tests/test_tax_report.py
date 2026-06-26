@@ -58,4 +58,5 @@ def test_write_quarter_report_aggregates_three_months(monkeypatch):
     # genuine quarter-level roll-up: the 50000 total appears in NO single monthly
     # section (April shows 30000, June shows 20000) — only the quarter roll-up.
     assert "本季彙整" in body
+    assert "本季彙整 (quarter roll-up · 非稅務建議)" in body
     assert "9A: 50000" in body
