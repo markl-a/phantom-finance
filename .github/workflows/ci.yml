@@ -12,7 +12,47 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: '3.11'
-      - run: pip install -e . pytest
-      - run: pytest tests/ -ra -q
+      - run: python -m pip install -e .[dev]
+      - name: build wheel
+        run: python -m pip wheel . --no-deps -w /tmp/phantom-finance-wheel
+      - run: python -m ruff check .
+      - run: python -m pytest tests/ -ra -q
+      - name: deterministic public smoke
+        run: |
+          export ROOT="$(mktemp -d)"
+          export PHANTOM_MESH_HOME="$ROOT/mesh"
+          export PHANTOM_FINANCE_HOME="$ROOT/finance"
+          python -m phantom_finance.cli --help
+          python -m phantom_finance.cli account add cathay --type cash
+          python -m phantom_finance.cli import tests/fixtures/bank_en.csv --account cathay
+          python -m phantom_finance.cli recat Starbucks dining
+          python -m phantom_finance.cli budget set dining 600
+          python -m phantom_finance.cli summary --month 2026-06 --json --out "$ROOT/summary-2026-06.json"
+          python -m phantom_finance.cli scenario-demo --out "$ROOT/subscription-scenario"
+          python -m phantom_finance.cli planning-scenario --out "$ROOT/planning-scenario"
+          python - <<'PY'
+          import json
+          import os
+          from pathlib import Path
+
+          root = Path(os.environ["ROOT"])
+          summary = json.loads((root / "summary-2026-06.json").read_text(encoding="utf-8"))
+          scenario_manifest = json.loads(
+              (root / "subscription-scenario" / "manifest.json").read_text(encoding="utf-8")
+          )
+          planning_manifest = json.loads(
+              (root / "planning-scenario" / "manifest.json").read_text(encoding="utf-8")
+          )
+
+          assert summary["schema_version"] == 1
+          assert "transactions" not in summary
+          for manifest in (scenario_manifest, planning_manifest):
+              assert manifest["synthetic_only"] is True
+              assert manifest["live_account_aggregation"] is False
+              assert manifest["bank_credentials_required"] is False
+              assert manifest["financial_advice"] is False
+              assert manifest["external_network"] is False
+              assert manifest["cloud_llm"] is False
+          PY
       - name: release-prep gate
         run: python -m pytest tests/test_release_prep_contract.py -q

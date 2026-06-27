@@ -66,7 +66,7 @@ def main(argv: list[str] | None = None) -> int:
     p_acc_add.add_argument("name")
     p_acc_add.add_argument("--type", dest="account_type", choices=["cash", "asset"], required=True)
     p_acc_add.add_argument("--currency", default="TWD")
-    p_acc_list = acc_sub.add_parser("list")
+    acc_sub.add_parser("list")
     p_acc_set = acc_sub.add_parser("set-type")
     p_acc_set.add_argument("name")
     p_acc_set.add_argument("account_type", choices=["cash", "asset"])

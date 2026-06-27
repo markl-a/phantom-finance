@@ -10,12 +10,32 @@ readme = "README.md"
 license = { text = "Apache-2.0" }
 requires-python = ">=3.10"
 authors = [{ name = "Mark Lai" }]
+classifiers = [
+  "Development Status :: 3 - Alpha",
+  "Environment :: Console",
+  "Intended Audience :: End Users/Desktop",
+  "License :: OSI Approved :: Apache Software License",
+  "Operating System :: OS Independent",
+  "Programming Language :: Python :: 3",
+  "Programming Language :: Python :: 3.10",
+  "Programming Language :: Python :: 3.11",
+  "Programming Language :: Python :: 3.12",
+  "Topic :: Office/Business :: Financial :: Accounting",
+  "Topic :: Utilities",
+]
+
+[project.urls]
+Homepage = "https://github.com/markl-a/phantom-finance"
+Documentation = "https://github.com/markl-a/phantom-finance/tree/main/docs"
+Issues = "https://github.com/markl-a/phantom-finance/issues"
+Source = "https://github.com/markl-a/phantom-finance"
 
 [project.scripts]
 phantom-finance = "phantom_finance.cli:main"
 
 [project.optional-dependencies]
 test = ["pytest>=7"]
+dev = ["pytest>=7", "ruff>=0.6"]
 
 [tool.setuptools.packages.find]
 include = ["phantom_finance*"]

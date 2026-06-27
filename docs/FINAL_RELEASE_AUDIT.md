@@ -2,7 +2,7 @@
 
 Status: release candidate approved and tagged.
 
-Date: 2026-06-26
+Date: 2026-06-27
 
 ## Scope
 
@@ -22,6 +22,19 @@ Result: `high_conf_secret_hits=0`.
 - Test dependency: `pytest>=7`, used for local/CI verification only.
 
 Direct default release-scope dependency/license review result: pass.
+
+## Current Verification Evidence
+
+- `python -m pip install -e . --dry-run --no-deps`: passed; would install `phantom-finance-0.1.0a0`.
+- `python -m pip wheel . --no-deps -w <temp>`: passed; built `phantom_finance-0.1.0a0-py3-none-any.whl`.
+- `python -m phantom_finance.cli --help`: passed.
+- Deterministic public smoke path: summary, `scenario-demo`, and `planning-scenario` artifacts verified with synthetic-only/no-live/no-network/no-cloud-LLM manifest boundaries.
+- `python -m ruff check .`: passed; all checks passed.
+- `python -m pytest -q`: passed; 126 tests passed.
+- Root `python .\run_phantom_satellite_usage_smoke.py`: passed; 10/10 projects OK.
+- Root `python .\run_phantom_agent_compat_smoke.py`: passed; 40/40 invocations OK.
+- Root `python -m pytest .\tests -q`: passed; 85 tests passed.
+- High-confidence secret scan: `high_conf_secret_hits=0`.
 
 ## Remaining Publication Gates
 

@@ -30,9 +30,6 @@ def test_render_includes_tax_section():
     assert "非稅務建議" in md
 
 
-from phantom_finance import paths
-
-
 def test_quarter_months_expands_correctly():
     assert reporter.quarter_months("2026Q2") == ["2026-04", "2026-05", "2026-06"]
 

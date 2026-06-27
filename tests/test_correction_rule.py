@@ -1,7 +1,7 @@
 import json
 from decimal import Decimal
 
-from phantom_finance import categorize, paths
+from phantom_finance import categorize, cli, ledger, paths
 from phantom_finance.ledger import Transaction
 
 
@@ -39,9 +39,6 @@ def test_learned_rule_matches_multi_space_description():
     # a multi-space description must yield a keyword that is a substring of itself
     categorize.add_user_rule(categorize.derive_keyword("路邊   滷味"), "street-food")
     assert categorize.categorize_one(txn("路邊   滷味 信義")) == "street-food"
-
-
-from phantom_finance import cli, ledger
 
 
 def test_recat_manual_correction_persists_rule_and_backfills():
