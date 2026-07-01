@@ -168,6 +168,11 @@ def render(txns: list[Transaction], month: str) -> str:
                 f"- {h.merchant} ({h.cadence}): now {h.latest_amount}, up "
                 f"{h.pct_change:.0f}% — worth a look when you have a moment"
             )
+    charges = recurring.detect(txns)
+    if charges:
+        lines += ["", "## Recurring charges", ""]
+        for c in charges:
+            lines.append(f"- {c.merchant} ({c.cadence}): typical {c.typical_amount}")
     tax = tax_summary(txns, month)
     lines += ["", "## 報稅摘要 (tax prep · 非稅務建議,給你或你的記帳士核對)", ""]
     if tax["income_by_type"]:
