@@ -154,6 +154,9 @@ def _normalize_date(raw: str, roc: bool = False) -> str:
     raw = raw.replace("/", "-")
     if "-" not in raw and len(raw) == 8 and raw.isdigit():
         # compact YYYYMMDD — western (TW compact exports use 西元 here)
+        m_int, d_int = int(raw[4:6]), int(raw[6:])
+        if m_int < 1 or m_int > 12 or d_int < 1 or d_int > 31:
+            raise ValueError(f"invalid date: {raw!r}")
         return f"{raw[:4]}-{raw[4:6]}-{raw[6:]}"
     parts = raw.split("-")
     if len(parts) == 3:
@@ -164,5 +167,9 @@ def _normalize_date(raw: str, roc: bool = False) -> str:
             #  western — there is no valid 4-digit ROC year in real statements.)
             if len(y.strip()) <= 3:
                 y = str(int(y) + ROC_EPOCH_OFFSET)
+        if m.isdigit() and d.isdigit():
+            mi, di = int(m), int(d)
+            if mi < 1 or mi > 12 or di < 1 or di > 31:
+                raise ValueError(f"invalid date: {raw!r}")
         return f"{y}-{m.zfill(2)}-{d.zfill(2)}"
     raise ValueError(f"cannot parse date: {raw!r}")

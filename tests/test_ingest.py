@@ -57,6 +57,34 @@ def test_normalize_roc_minguo_dates():
     assert ingest._normalize_date("2026-06-01") == "2026-06-01"
 
 
+def test_normalize_date_out_of_range_month():
+    with pytest.raises(ValueError, match="invalid date"):
+        ingest._normalize_date("2026-13-01")
+    with pytest.raises(ValueError, match="invalid date"):
+        ingest._normalize_date("2026/13/01")
+
+
+def test_normalize_date_out_of_range_day():
+    with pytest.raises(ValueError, match="invalid date"):
+        ingest._normalize_date("2026-01-32")
+    with pytest.raises(ValueError, match="invalid date"):
+        ingest._normalize_date("2026/01/32")
+
+
+def test_normalize_date_compact_out_of_range():
+    with pytest.raises(ValueError, match="invalid date"):
+        ingest._normalize_date("20261301")
+    with pytest.raises(ValueError, match="invalid date"):
+        ingest._normalize_date("20260132")
+
+
+def test_normalize_date_zero_month_day():
+    with pytest.raises(ValueError, match="invalid date"):
+        ingest._normalize_date("2026-00-01")
+    with pytest.raises(ValueError, match="invalid date"):
+        ingest._normalize_date("2026-01-00")
+
+
 def test_normalize_roc_dates_via_explicit_flag():
     # When a preset declares ROC dates, a 2-3 digit leading field is the ROC year.
     assert ingest._normalize_date("115/06/01", roc=True) == "2026-06-01"
