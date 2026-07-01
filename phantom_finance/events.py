@@ -15,9 +15,19 @@ from . import paths
 def emit(kind: str, payload: dict) -> str:
     """Write an event, return the event id."""
     ts = datetime.now(timezone.utc)
-    event_id = f"{ts.strftime('%Y%m%dT%H%M%S')}-phantom-finance-{kind}"
-    event_dir = paths.events_dir() / event_id
-    event_dir.mkdir(parents=True, exist_ok=True)
+    base_event_id = f"{ts.strftime('%Y%m%dT%H%M%S')}-phantom-finance-{kind}"
+    event_root = paths.events_dir()
+    suffix = 0
+    while True:
+        event_id = (
+            base_event_id if suffix == 0 else f"{base_event_id}-{suffix:04d}"
+        )
+        event_dir = event_root / event_id
+        try:
+            event_dir.mkdir(parents=True, exist_ok=False)
+            break
+        except FileExistsError:
+            suffix += 1
     meta = {
         "source": "phantom-finance",
         "kind": kind,
