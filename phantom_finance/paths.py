@@ -46,6 +46,11 @@ def accounts_path() -> Path:
     return finance_home() / "accounts.json"
 
 
+def recurring_path() -> Path:
+    """Persisted recurring-charge review state (new/reviewed/ignored)."""
+    return finance_home() / "recurring.json"
+
+
 def reports_dir() -> Path:
     p = mesh_home() / "logs" / "phantom-finance"
     p.mkdir(parents=True, exist_ok=True)

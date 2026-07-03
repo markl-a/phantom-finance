@@ -26,6 +26,17 @@ def _norm(desc: str) -> str:
     return " ".join(desc.strip().lower().split())
 
 
+def charge_key(charge: "RecurringCharge") -> str:
+    """Stable identity for a detected charge across re-detections.
+
+    ``detect`` groups transactions by the normalised description, so the
+    normalised merchant is the same group key on every run even as amounts,
+    dates and occurrence counts drift. Used as the persistence key in
+    ``recurring_store``.
+    """
+    return _norm(charge.merchant)
+
+
 def _classify_cadence(median_gap_days: float) -> str | None:
     if 5 <= median_gap_days <= 9:
         return "weekly"

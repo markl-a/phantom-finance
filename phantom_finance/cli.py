@@ -17,8 +17,23 @@ from datetime import date
 from decimal import Decimal
 from pathlib import Path
 
-from . import budget, categorize, ingest, ledger, llm, networth, presets, recurring, reporter, scenario
+from . import (
+    budget,
+    categorize,
+    ingest,
+    ledger,
+    llm,
+    networth,
+    presets,
+    recurring,
+    recurring_store,
+    reporter,
+    scenario,
+)
 from .ledger import Transaction, parse_amount
+
+# list ordering: surface un-triaged charges first, dismissed ones last
+STATE_ORDER = {"new": 0, "reviewed": 1, "ignored": 2}
 
 
 def main(argv: list[str] | None = None) -> int:
@@ -78,7 +93,26 @@ def main(argv: list[str] | None = None) -> int:
     p_recat.add_argument("match", nargs="?", help="substring of the description to correct")
     p_recat.add_argument("category", nargs="?", help="category to assign + remember")
 
-    sub.add_parser("recurring", help="list detected recurring charges / subscriptions")
+    p_rec = sub.add_parser(
+        "recurring",
+        help="list / review detected recurring charges (new -> reviewed -> ignored)",
+    )
+    rec_sub = p_rec.add_subparsers(dest="recurring_cmd")
+    p_rec_list = rec_sub.add_parser(
+        "list", help="sync detection into recurring.json and list persisted charges"
+    )
+    p_rec_list.add_argument(
+        "--state",
+        choices=list(recurring_store.STATES),
+        default=None,
+        help="only show charges in this review state",
+    )
+    p_rec_review = rec_sub.add_parser("review", help="mark a charge reviewed")
+    p_rec_review.add_argument("merchant", help="merchant name or unique substring")
+    p_rec_ignore = rec_sub.add_parser("ignore", help="mark a charge ignored")
+    p_rec_ignore.add_argument("merchant", help="merchant name or unique substring")
+    p_rec_reset = rec_sub.add_parser("reset", help="mark a charge new again")
+    p_rec_reset.add_argument("merchant", help="merchant name or unique substring")
     p_scenario = sub.add_parser(
         "scenario-demo",
         help="write a synthetic subscription/scenario artifact bundle",
@@ -186,17 +220,38 @@ def main(argv: list[str] | None = None) -> int:
             print(f"re-categorized {changed} transactions")
 
     elif args.cmd == "recurring":
-        charges = recurring.detect(ledger.load())
-        if not charges:
-            print("no recurring charges detected yet")
-        for c in charges:
-            line = (
-                f"{c.merchant:24s} {c.cadence:9s} x{c.occurrences:<3d} "
-                f"~{c.typical_amount} latest {c.latest_amount}"
-            )
-            if c.price_increased:
-                line += f"  PRICE UP +{c.pct_change:.0f}%"
-            print(line)
+        rec_cmd = getattr(args, "recurring_cmd", None)
+        # every path first folds a fresh detection pass into recurring.json,
+        # preserving any review decisions the user already made
+        records = recurring_store.sync(recurring.detect(ledger.load()))
+
+        if rec_cmd in (None, "list"):
+            state_filter = getattr(args, "state", None)
+            rows = [
+                r for r in records.values() if state_filter is None or r.state == state_filter
+            ]
+            if not rows:
+                if not records:
+                    print("no recurring charges detected yet")
+                else:
+                    print(f"no recurring charges in state {state_filter!r}")
+            for r in sorted(rows, key=lambda x: (STATE_ORDER.get(x.state, 9), x.merchant)):
+                line = (
+                    f"[{r.state:8s}] {r.merchant:24s} {r.cadence:9s} x{r.occurrences:<3d} "
+                    f"~{r.typical_amount} latest {r.latest_amount}"
+                )
+                if r.price_increased:
+                    line += f"  PRICE UP +{r.pct_change:.0f}%"
+                print(line)
+        else:
+            target = {"review": "reviewed", "ignore": "ignored", "reset": "new"}[rec_cmd]
+            try:
+                key = recurring_store.resolve_key(args.merchant, records)
+                rec = recurring_store.set_state(key, target)
+            except ValueError as e:
+                print(f"error: {e}", file=sys.stderr)
+                return 1
+            print(f"{rec.merchant} -> {rec.state}")
 
     elif args.cmd == "scenario-demo":
         out_dir = scenario.write_scenario_demo_bundle(args.out)
