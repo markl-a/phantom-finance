@@ -19,6 +19,20 @@ python -m pytest -q
 python -m phantom_finance.cli --help
 ```
 
+## MCP server
+
+The MCP server ships in the **default** install — a plain `pip install -e .`
+pulls in `mcp` and exposes the `phantom-finance-mcp` entry point, so the mesh can
+wire it in without any extra:
+
+```powershell
+python -m pip install -e .
+phantom-finance-mcp            # or: python -m phantom_finance.mcp_server
+```
+
+It serves one aggregate-only tool, `finance_monthly_summary(month, currency)`,
+backed by the local ledger — no raw rows leave the machine.
+
 Synthetic, isolated demo:
 
 ```powershell

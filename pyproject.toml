@@ -10,6 +10,7 @@ readme = "README.md"
 license = { text = "Apache-2.0" }
 requires-python = ">=3.10"
 authors = [{ name = "Mark Lai" }]
+dependencies = ["mcp>=1"]
 classifiers = [
   "Development Status :: 3 - Alpha",
   "Environment :: Console",
@@ -37,7 +38,6 @@ phantom-finance-mcp = "phantom_finance.mcp_server:main"
 [project.optional-dependencies]
 test = ["pytest>=7"]
 dev = ["pytest>=7", "ruff>=0.6"]
-mcp = ["mcp>=1"]
 
 [tool.setuptools.packages.find]
 include = ["phantom_finance*"]
